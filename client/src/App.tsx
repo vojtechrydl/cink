@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/Layout";
+import { HomePage } from "./pages/HomePage";
 import { CatalogPage } from "./pages/CatalogPage";
 import { AlbumPage } from "./pages/AlbumPage";
 import { StatsPage } from "./pages/StatsPage";
@@ -28,7 +29,8 @@ export default function App() {
             <Route path="/registrace" element={<RegisterPage />} />
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
-                <Route path="/" element={<CatalogPage />} />
+                <Route path="/" element={<HomePage />} />
+                <Route path="/katalog" element={<CatalogPage />} />
                 <Route path="/album" element={<AlbumPage />} />
                 <Route path="/statistiky" element={<StatsPage />} />
               </Route>

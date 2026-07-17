@@ -1,6 +1,13 @@
-import { Outlet } from "react-router";
+import { NavLink, Outlet } from "react-router";
 import { BottomNav } from "./BottomNav";
 import { useAuth } from "../context/AuthContext";
+
+const desktopLinks = [
+  { to: "/", label: "Domů" },
+  { to: "/katalog", label: "Katalog" },
+  { to: "/album", label: "Album" },
+  { to: "/statistiky", label: "Statistiky" },
+] as const;
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -20,6 +27,25 @@ export function Layout() {
             </div>
             <span className="font-extrabold text-[17px] tracking-[.06em] text-heading">CINK</span>
           </div>
+          <nav className="hidden md:flex items-center gap-1">
+            {desktopLinks.map(({ to, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === "/"}
+                className={({ isActive }) =>
+                  `px-3 py-[6px] rounded-[9px] text-[13px] font-semibold transition-colors ${
+                    isActive
+                      ? "bg-brand-bg text-brand-dark"
+                      : "text-secondary hover:bg-chip"
+                  }`
+                }
+              >
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+
           <div className="flex items-center gap-3">
             <span className="text-[13px] text-tertiary hidden sm:inline">
               {user?.name}
