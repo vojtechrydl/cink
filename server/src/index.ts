@@ -7,7 +7,7 @@ import tramsRoutes from "./routes/trams.js";
 import sightingsRoutes from "./routes/sightings.js";
 import statsRoutes from "./routes/stats.js";
 import { runMigrations } from "./db/migrate.js";
-import { seedTrams } from "./db/seed.js";
+import { seedTrams, seedTestUser } from "./db/seed.js";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000", 10);
@@ -40,6 +40,7 @@ async function start() {
   if (process.env.NODE_ENV === "production") {
     await runMigrations(resolve(appRoot, "server/src/db/migrations"));
     await seedTrams(resolve(appRoot, "seed/trams.json"));
+    await seedTestUser();
   }
 
   app.listen(PORT, () => {
