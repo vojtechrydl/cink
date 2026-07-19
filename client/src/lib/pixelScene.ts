@@ -1,5 +1,6 @@
-// Pixel "Pokédex" scene: side-view Plzeň at dusk with the user's caught trams
-// roaming freely. Rendering is portable (browser canvas or node via an injected
+// Pixel "Pokédex" scene: a full-bleed, low-contrast Plzeň city texture with
+// the user's caught trams roaming the whole screen. Day or night follows the
+// local clock. Rendering is portable (browser canvas or node via an injected
 // canvas factory) so it can be verified headless.
 
 export interface Livery {
@@ -189,11 +190,38 @@ export class SpriteCache {
   geoWidth(type: string) { return getGeo(configForType(type)).w; }
 }
 
-// ---- scene (dusk Plzeň, fixed 1000x600 world; component cover-scales it) ----
+// ---- scene (full-bleed Plzeň texture, fixed 1000x600 world; component cover-scales it) ----
 export const WORLD_W = 1000;
 export const WORLD_H = 600;
-const BASE = 430; // ground line for landmarks
-const PAL = { bg: "#0e1220", bg2: "#141a2b", ink: "#e8ebf5", star: "#3a4568" };
+
+export type SceneMode = "day" | "night";
+export function sceneMode(date = new Date()): SceneMode {
+  const h = date.getHours();
+  return h >= 7 && h < 20 ? "day" : "night";
+}
+export function sceneBg(mode: SceneMode) {
+  return mode === "day" ? "#e9ebf1" : "#232b43";
+}
+
+interface Palette {
+  bg: string; ink: string; win: string; winA: number;
+  green: string; red: string; redD: string; cream: string; creamD: string; gold: string;
+  stone: string; roof: string; hole: string; night: boolean;
+}
+function makePalette(mode: SceneMode): Palette {
+  const night = mode === "night";
+  const bg = sceneBg(mode), ink = night ? "#e8ebf5" : "#1a2032";
+  const col = (hex: string, towardBg: number) => rgbCss(mix(hex, bg, towardBg));
+  return night
+    ? { bg, ink, win: "#f4d488", winA: 0.4,
+        green: col("#3f9b83", 0.5), red: col("#a85a49", 0.45), redD: col("#8a4a44", 0.45),
+        cream: col("#c2b390", 0.45), creamD: col("#a2916e", 0.45), gold: "#c9a75a",
+        stone: col(ink, 0.82), roof: col(ink, 0.76), hole: col("#000000", 0.7), night }
+    : { bg, ink, win: col(ink, 0.42), winA: 0.3,
+        green: col("#3f9b83", 0.6), red: col("#a85a49", 0.56), redD: col("#8a4a44", 0.56),
+        cream: col("#b3a37e", 0.52), creamD: col("#99855c", 0.52), gold: col("#b58a2a", 0.42),
+        stone: col(ink, 0.8), roof: col(ink, 0.72), hole: col(ink, 0.64), night };
+}
 
 function rect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, c: string) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
 function tri(ctx: CanvasRenderingContext2D, ax: number, ay: number, bx: number, by: number, cx: number, cy: number, c: string) { ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.lineTo(cx, cy); ctx.closePath(); ctx.fill(); }
@@ -211,118 +239,101 @@ function onion(ctx: CanvasRenderingContext2D, cx: number, yBase: number, wmax: n
 }
 function starD(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, c: string) { tri(ctx, cx - r, cy + r * 0.55, cx + r, cy + r * 0.55, cx, cy - r, c); tri(ctx, cx - r, cy - r * 0.55, cx + r, cy - r * 0.55, cx, cy + r, c); }
 
-function farRow(ctx: CanvasRenderingContext2D, base: number, tone: string) {
-  for (let x = -10; x < WORLD_W + 10; x += 42) { const h = 26 + ((x * 11) % 32); rect(ctx, x, base - h, 40, h, tone); tri(ctx, x, base - h, x + 20, base - h - 8, x + 40, base - h, tone); }
-}
-function cityRow(ctx: CanvasRenderingContext2D, base: number, step: number, minH: number, varH: number, gable: number, tone: string, win: string, wa: number) {
-  for (let x = -8; x < WORLD_W + 8; x += step) {
-    const h = minH + ((x * 13) % varH), w = step - 4;
-    rect(ctx, x, base - h, w, h, tone);
-    tri(ctx, x - 1, base - h, x + w / 2, base - h - gable, x + w + 1, base - h, tone);
-    windows(ctx, x + 5, base - h + 9, x + w - 3, base - 8, 9, 13, win, wa);
-  }
-}
-
-function lmRadnice(ctx: CanvasRenderingContext2D, cx: number, stone: string, roof: string, green: string, gold: string, win: string, wa: number) {
-  const w = 60, x = cx - w / 2, top = BASE - 124;
-  rect(ctx, x, top, w, BASE - top, stone);
-  rect(ctx, x, top, w, 22, roof);
-  [x + 9, x + w - 9].forEach((gx) => { rect(ctx, gx - 7, top - 6, 14, 6, roof); rect(ctx, gx - 1, top - 14, 2, 8, gold); rect(ctx, gx - 3, top - 14, 6, 2, gold); });
-  rect(ctx, cx - 6, top - 12, 12, 12, stone);
-  onion(ctx, cx, top - 12, 15, 14, green, null);
-  rect(ctx, cx - 1, top - 32, 2, 6, green);
-  ctx.fillStyle = win; ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.arc(cx, top + 10, 3, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
-  windows(ctx, x + 6, top + 26, x + w - 4, BASE - 6, 11, 14, win, wa);
-}
-function lmSynagoga(ctx: CanvasRenderingContext2D, cx: number, red: string, redD: string, cream: string, gold: string, hole: string) {
-  const gap = 58, t1 = cx - gap / 2, t2 = cx + gap / 2, tw = 24, tTop = BASE - 98, bTop = BASE - 62;
-  const bw = gap + tw, bx = cx - bw / 2;
-  rect(ctx, bx, bTop, bw, BASE - bTop, red);
-  tri(ctx, bx, bTop, cx, bTop - 22, bx + bw, bTop, red);
-  starD(ctx, cx, bTop - 9, 4, gold);
-  for (let a = 0; a < 3; a++) { const wx = bx + 10 + a * ((bw - 16) / 3); ctx.fillStyle = hole; ctx.beginPath(); ctx.moveTo(wx, BASE); ctx.lineTo(wx, bTop + 16); ctx.arc(wx + 6, bTop + 16, 6, Math.PI, 0, false); ctx.lineTo(wx + 12, BASE); ctx.closePath(); ctx.fill(); }
-  [t1, t2].forEach((tc) => {
-    rect(ctx, tc - tw / 2, tTop, tw, BASE - tTop, red);
-    for (let by = tTop + 10; by < BASE; by += 13) rect(ctx, tc - tw / 2, by, tw, 2, cream);
-    onion(ctx, tc, tTop, tw + 8, 24, redD, cream);
-    rect(ctx, tc - 1, tTop - 35, 2, 11, gold); starD(ctx, tc, tTop - 39, 3, gold);
+// Rows of soft building silhouettes staggered over the WHOLE canvas — the city
+// is a gentle texture behind the trams, not a horizon with sky above it.
+interface TexRow { base: number; step: number; minH: number; varH: number; seed: number; }
+const TEX_ROWS: TexRow[] = [
+  { base: 34, step: 46, minH: 44, varH: 30, seed: 5 },
+  { base: 118, step: 42, minH: 46, varH: 34, seed: 11 },
+  { base: 210, step: 40, minH: 52, varH: 40, seed: 17 },
+  { base: 302, step: 44, minH: 48, varH: 38, seed: 23 },
+  { base: 394, step: 38, minH: 54, varH: 42, seed: 29 },
+  { base: 488, step: 42, minH: 50, varH: 36, seed: 37 },
+  { base: 580, step: 40, minH: 56, varH: 44, seed: 43 },
+  { base: 652, step: 46, minH: 60, varH: 40, seed: 47 },
+];
+function drawTexture(ctx: CanvasRenderingContext2D, p: Palette) {
+  TEX_ROWS.forEach((r, i) => {
+    const t = 0.05 + i * 0.011;
+    const tone = rgbCss(mix(p.ink, p.bg, 1 - t));
+    for (let x = -30 + ((r.seed * 13) % r.step); x < WORLD_W + 10; x += r.step) {
+      const h = r.minH + (((x * r.seed) % r.varH) + r.varH) % r.varH;
+      const w = r.step - 5;
+      rect(ctx, x, r.base - h, w, h, tone);
+      tri(ctx, x - 1, r.base - h, x + w / 2, r.base - h - 10, x + w + 1, r.base - h, tone);
+      windows(ctx, x + 5, r.base - h + 8, x + w - 3, r.base - 6, 9, 13, p.win, p.winA);
+    }
   });
 }
-function lmBartolomej(ctx: CanvasRenderingContext2D, cx: number, stone: string, green: string, roof: string, win: string, wa: number) {
-  const tw = 24, tx = cx - tw / 2, tTop = BASE - 100;
-  const nx = cx + tw / 2 - 2, nw = 116, nTop = BASE - 70;
-  rect(ctx, nx, nTop + 14, nw, BASE - (nTop + 14), stone);
-  rect(ctx, nx, nTop + 6, nw, 10, roof);
-  ctx.fillStyle = win; ctx.globalAlpha = wa;
-  for (let gwx = nx + 10; gwx < nx + nw - 6; gwx += 16) ctx.fillRect(gwx, nTop + 22, 3, BASE - nTop - 30);
+
+function lmRadnice(ctx: CanvasRenderingContext2D, cx: number, base: number, p: Palette) {
+  const w = 60, x = cx - w / 2, top = base - 124;
+  rect(ctx, x, top, w, base - top, p.stone);
+  rect(ctx, x, top, w, 22, p.roof);
+  [x + 9, x + w - 9].forEach((gx) => { rect(ctx, gx - 7, top - 6, 14, 6, p.roof); rect(ctx, gx - 1, top - 14, 2, 8, p.gold); rect(ctx, gx - 3, top - 14, 6, 2, p.gold); });
+  rect(ctx, cx - 6, top - 12, 12, 12, p.stone);
+  onion(ctx, cx, top - 12, 15, 14, p.green, null);
+  rect(ctx, cx - 1, top - 32, 2, 6, p.green);
+  ctx.fillStyle = p.win; ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.arc(cx, top + 10, 3, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+  windows(ctx, x + 6, top + 26, x + w - 4, base - 6, 11, 14, p.win, p.winA);
+}
+function lmSynagoga(ctx: CanvasRenderingContext2D, cx: number, base: number, p: Palette) {
+  const gap = 58, t1 = cx - gap / 2, t2 = cx + gap / 2, tw = 24, tTop = base - 98, bTop = base - 62;
+  const bw = gap + tw, bx = cx - bw / 2;
+  rect(ctx, bx, bTop, bw, base - bTop, p.red);
+  tri(ctx, bx, bTop, cx, bTop - 22, bx + bw, bTop, p.red);
+  starD(ctx, cx, bTop - 9, 4, p.gold);
+  for (let a = 0; a < 3; a++) { const wx = bx + 10 + a * ((bw - 16) / 3); ctx.fillStyle = p.hole; ctx.beginPath(); ctx.moveTo(wx, base); ctx.lineTo(wx, bTop + 16); ctx.arc(wx + 6, bTop + 16, 6, Math.PI, 0, false); ctx.lineTo(wx + 12, base); ctx.closePath(); ctx.fill(); }
+  [t1, t2].forEach((tc) => {
+    rect(ctx, tc - tw / 2, tTop, tw, base - tTop, p.red);
+    for (let by = tTop + 10; by < base; by += 13) rect(ctx, tc - tw / 2, by, tw, 2, p.cream);
+    onion(ctx, tc, tTop, tw + 8, 24, p.redD, p.cream);
+    rect(ctx, tc - 1, tTop - 35, 2, 11, p.gold); starD(ctx, tc, tTop - 39, 3, p.gold);
+  });
+}
+function lmBartolomej(ctx: CanvasRenderingContext2D, cx: number, base: number, p: Palette) {
+  const tw = 24, tx = cx - tw / 2, tTop = base - 100;
+  const nx = cx + tw / 2 - 2, nw = 116, nTop = base - 70;
+  rect(ctx, nx, nTop + 14, nw, base - (nTop + 14), p.stone);
+  rect(ctx, nx, nTop + 6, nw, 10, p.roof);
+  ctx.fillStyle = p.win; ctx.globalAlpha = p.winA;
+  for (let gwx = nx + 10; gwx < nx + nw - 6; gwx += 16) ctx.fillRect(gwx, nTop + 22, 3, base - nTop - 30);
   ctx.globalAlpha = 1;
-  rect(ctx, nx + nw * 0.5, nTop - 4, 3, 12, stone); tri(ctx, nx + nw * 0.5 - 3, nTop - 4, nx + nw * 0.5 + 1.5, nTop - 14, nx + nw * 0.5 + 6, nTop - 4, green);
-  rect(ctx, tx, tTop, tw, BASE - tTop, stone);
-  ctx.fillStyle = win; ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.arc(cx, tTop + 24, 4, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
-  windows(ctx, tx + 4, tTop + 40, tx + tw - 3, BASE - 14, 8, 16, win, wa);
-  tri(ctx, tx + 1, tTop, cx, BASE - 192, tx + tw - 1, tTop, green);
-  rect(ctx, cx - 1, BASE - 200, 2, 9, green);
+  rect(ctx, nx + nw * 0.5, nTop - 4, 3, 12, p.stone); tri(ctx, nx + nw * 0.5 - 3, nTop - 4, nx + nw * 0.5 + 1.5, nTop - 14, nx + nw * 0.5 + 6, nTop - 4, p.green);
+  rect(ctx, tx, tTop, tw, base - tTop, p.stone);
+  ctx.fillStyle = p.win; ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.arc(cx, tTop + 24, 4, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+  windows(ctx, tx + 4, tTop + 40, tx + tw - 3, base - 14, 8, 16, p.win, p.winA);
+  tri(ctx, tx + 1, tTop, cx, base - 192, tx + tw - 1, tTop, p.green);
+  rect(ctx, cx - 1, base - 200, 2, 9, p.green);
 }
-function lmPrazdroj(ctx: CanvasRenderingContext2D, cx: number, cream: string, creamD: string, hole: string, gold: string) {
-  const w = 94, x = cx - w / 2, top = BASE - 56;
-  rect(ctx, x, top, w, BASE - top, cream);
-  [cx - 22, cx + 22].forEach((axx) => { ctx.fillStyle = hole; ctx.beginPath(); ctx.moveTo(axx - 13, BASE); ctx.lineTo(axx - 13, top + 18); ctx.arc(axx, top + 18, 13, Math.PI, 0, false); ctx.lineTo(axx + 13, BASE); ctx.closePath(); ctx.fill(); });
-  rect(ctx, x, top, w, 7, creamD);
-  rect(ctx, cx - 13, top - 20, 26, 22, cream); tri(ctx, cx - 13, top - 20, cx, top - 33, cx + 13, top - 20, cream);
-  rect(ctx, cx - 1, top - 41, 2, 8, gold);
+function lmPrazdroj(ctx: CanvasRenderingContext2D, cx: number, base: number, p: Palette) {
+  const w = 94, x = cx - w / 2, top = base - 56;
+  rect(ctx, x, top, w, base - top, p.cream);
+  [cx - 22, cx + 22].forEach((axx) => { ctx.fillStyle = p.hole; ctx.beginPath(); ctx.moveTo(axx - 13, base); ctx.lineTo(axx - 13, top + 18); ctx.arc(axx, top + 18, 13, Math.PI, 0, false); ctx.lineTo(axx + 13, base); ctx.closePath(); ctx.fill(); });
+  rect(ctx, x, top, w, 7, p.creamD);
+  rect(ctx, cx - 13, top - 20, 26, 22, p.cream); tri(ctx, cx - 13, top - 20, cx, top - 33, cx + 13, top - 20, p.cream);
+  rect(ctx, cx - 1, top - 41, 2, 8, p.gold);
 }
-function lmWaterTower(ctx: CanvasRenderingContext2D, cx: number, stone: string, cream: string, roof: string, band: string) {
-  rect(ctx, cx + 15, BASE - 118, 8, 118, stone);
-  rect(ctx, cx + 15, BASE - 104, 8, 3, band); rect(ctx, cx + 15, BASE - 66, 8, 3, band);
-  const tw = 22; rect(ctx, cx - tw / 2, BASE - 76, tw, 76, stone);
-  for (let by = BASE - 64; by < BASE; by += 16) rect(ctx, cx - tw / 2, by, tw, 2, cream);
-  tri(ctx, cx - tw / 2 - 3, BASE - 76, cx, BASE - 96, cx + tw / 2 + 3, BASE - 76, roof);
-  rect(ctx, cx - 1, BASE - 102, 2, 6, stone);
-}
-
-let starField: number[][] | null = null;
-function stars() {
-  if (!starField) { starField = []; for (let i = 0; i < 60; i++) starField.push([Math.random() * WORLD_W, Math.random() * (BASE - 260), Math.random() * 1.5 + 0.4]); }
-  return starField;
+function lmWaterTower(ctx: CanvasRenderingContext2D, cx: number, base: number, p: Palette) {
+  rect(ctx, cx + 15, base - 118, 8, 118, p.stone);
+  rect(ctx, cx + 15, base - 104, 8, 3, p.creamD); rect(ctx, cx + 15, base - 66, 8, 3, p.creamD);
+  const tw = 22; rect(ctx, cx - tw / 2, base - 76, tw, 76, p.stone);
+  for (let by = base - 64; by < base; by += 16) rect(ctx, cx - tw / 2, by, tw, 2, p.cream);
+  tri(ctx, cx - tw / 2 - 3, base - 76, cx, base - 96, cx + tw / 2 + 3, base - 76, p.roof);
+  rect(ctx, cx - 1, base - 102, 2, 6, p.stone);
 }
 
-export function drawBackdrop(ctx: CanvasRenderingContext2D) {
-  const gen = (a: number) => rgbCss(mix(PAL.bg2, PAL.ink, a));
-  const col = (hex: string, a: number) => rgbCss(mix(hex, PAL.bg, a));
-  const win = "#f4d488", wa = 0.55;
-  const green = col("#3f9b83", 0.58), red = col("#a85a49", 0.56), redD = col("#8a4a44", 0.56),
-    cream = col("#c2b390", 0.55), creamD = col("#a2916e", 0.56), gold = "#c9a75a",
-    stone = gen(0.19), roof = rgbCss(mix(PAL.bg, PAL.ink, 0.24)), hole = rgbCss(mix(PAL.bg, "#000000", 0.30));
-
-  const g = ctx.createLinearGradient(0, 0, 0, WORLD_H);
-  g.addColorStop(0, PAL.bg); g.addColorStop(0.4, rgbCss(mix(PAL.bg, PAL.ink, 0.05))); g.addColorStop(1, gen(0.05));
-  ctx.fillStyle = g; ctx.fillRect(0, 0, WORLD_W, WORLD_H);
-
-  ctx.fillStyle = PAL.star;
-  for (const s of stars()) { ctx.globalAlpha = 0.4 + 0.4 * (s[2] / 2); ctx.fillRect(s[0], s[1], s[2], s[2]); }
-  ctx.globalAlpha = 1;
-
-  const hy = BASE - 330;
-  ctx.fillStyle = gen(0.03); ctx.beginPath(); ctx.moveTo(0, hy);
-  ctx.quadraticCurveTo(170, hy - 24, 330, hy - 6); ctx.quadraticCurveTo(520, hy - 32, 720, hy - 8); ctx.quadraticCurveTo(880, hy - 24, 1000, hy - 6);
-  ctx.lineTo(1000, hy + 70); ctx.lineTo(0, hy + 70); ctx.closePath(); ctx.fill();
-
-  farRow(ctx, BASE - 130, gen(0.06));
-  rect(ctx, 0, BASE - 2, WORLD_W, WORLD_H - BASE + 2, gen(0.16));
-  cityRow(ctx, BASE, 34, 52, 40, 11, gen(0.12), win, wa);
-
-  lmRadnice(ctx, 150, stone, roof, green, gold, win, wa);
-  lmSynagoga(ctx, 348, red, redD, cream, gold, hole);
-  lmBartolomej(ctx, 548, stone, green, roof, win, wa);
-  lmPrazdroj(ctx, 768, cream, creamD, hole, gold);
-  lmWaterTower(ctx, 902, stone, cream, roof, gen(0.05));
-
-  cityRow(ctx, BASE + 88, 40, 60, 46, 13, gen(0.15), win, wa);
-  cityRow(ctx, WORLD_H + 6, 44, 78, 52, 15, gen(0.20), win, wa);
-
-  const vg = ctx.createRadialGradient(500, 300, 220, 500, 300, 720);
-  vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,0.38)");
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+export function drawBackdrop(ctx: CanvasRenderingContext2D, mode: SceneMode = sceneMode()) {
+  const p = makePalette(mode);
+  ctx.fillStyle = p.bg;
+  ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+  drawTexture(ctx, p);
+  // Landmarks scattered across the canvas, sitting inside the texture.
+  lmSynagoga(ctx, 200, 150, p);
+  lmBartolomej(ctx, 640, 214, p);
+  lmRadnice(ctx, 420, 356, p);
+  lmPrazdroj(ctx, 850, 400, p);
+  lmWaterTower(ctx, 120, 520, p);
 }
 
 // ---- entities ----
@@ -351,18 +362,18 @@ export function stepEntities(ents: Entity[], dt: number, cache: SpriteCache) {
     if (e.y < 4) { e.y = 4; e.vy = Math.abs(e.vy); } if (e.y > WORLD_H - hh - 4) { e.y = WORLD_H - hh - 4; e.vy = -Math.abs(e.vy); }
   }
 }
-function sparkle(ctx: CanvasRenderingContext2D, cx: number, cy: number, phase: number) {
+function sparkle(ctx: CanvasRenderingContext2D, cx: number, cy: number, phase: number, color: string) {
   const a = 0.35 + 0.65 * Math.abs(Math.sin(phase)), s = 1 + Math.abs(Math.sin(phase)) * 1.6;
-  ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = "#fff7d6"; ctx.fillRect(cx - s, cy, s * 2, 1.4); ctx.fillRect(cx, cy - s, 1.4, s * 2); ctx.restore();
+  ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = color; ctx.fillRect(cx - s, cy, s * 2, 1.4); ctx.fillRect(cx, cy - s, 1.4, s * 2); ctx.restore();
 }
-export function drawEntities(ctx: CanvasRenderingContext2D, ents: Entity[], cache: SpriteCache, timeMs: number, shiny = true) {
+export function drawEntities(ctx: CanvasRenderingContext2D, ents: Entity[], cache: SpriteCache, timeMs: number, shiny = true, sparkleColor = "#fff7d6") {
   ctx.imageSmoothingEnabled = false;
   ents.forEach((e, i) => {
     const sprite = cache.get(e.type, e.colorBase), sc = e.scale, flip = e.vx < 0;
     const w = sprite.width * sc, hh = sprite.height * sc, dx = Math.round(e.x), dy = Math.round(e.y);
-    ctx.save(); ctx.globalAlpha = 0.22; ctx.fillStyle = "#000"; ctx.beginPath(); ctx.ellipse(dx + w / 2, dy + hh - 1, w * 0.42, 3.5, 0, 0, 7); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.globalAlpha = 0.18; ctx.fillStyle = "#000"; ctx.beginPath(); ctx.ellipse(dx + w / 2, dy + hh - 1, w * 0.42, 3.5, 0, 0, 7); ctx.fill(); ctx.restore();
     if (flip) { ctx.save(); ctx.translate(dx + w, dy); ctx.scale(-1, 1); ctx.drawImage(sprite, 0, 0, w, hh); ctx.restore(); }
     else ctx.drawImage(sprite, dx, dy, w, hh);
-    if (shiny && e.colorBase !== "žlutošedá") { const ph = timeMs / 380 + i * 1.3; sparkle(ctx, e.x + w * (flip ? 0.2 : 0.8), e.y + 3, ph); sparkle(ctx, e.x + w * 0.5, e.y - 1, ph + 1.7); }
+    if (shiny && e.colorBase !== "žlutošedá") { const ph = timeMs / 380 + i * 1.3; sparkle(ctx, e.x + w * (flip ? 0.2 : 0.8), e.y + 3, ph, sparkleColor); sparkle(ctx, e.x + w * 0.5, e.y - 1, ph + 1.7, sparkleColor); }
   });
 }

@@ -8,6 +8,8 @@ import {
   drawBackdrop,
   drawEntities,
   makeEntities,
+  sceneBg,
+  sceneMode,
   stepEntities,
   WORLD_W,
   WORLD_H,
@@ -19,6 +21,8 @@ export function HomePage() {
   const { user } = useAuth();
   const { data: trams } = useTrams();
   const { data: sightings } = useSightings();
+  const mode = useMemo(() => sceneMode(), []);
+  const day = mode === "day";
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -81,9 +85,9 @@ export function HomePage() {
       ctx!.clearRect(0, 0, cw, ch);
       ctx!.setTransform(scale, 0, 0, scale, ox, oy);
 
-      drawBackdrop(ctx!);
+      drawBackdrop(ctx!, mode);
       if (!reduce) stepEntities(entsRef.current, dt, cache);
-      drawEntities(ctx!, entsRef.current, cache, t);
+      drawEntities(ctx!, entsRef.current, cache, t, true, day ? "#d97706" : "#fff7d6");
     }
 
     function loop(t: number) {
@@ -108,29 +112,29 @@ export function HomePage() {
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, []);
+  }, [mode, day]);
 
   return (
     <div
       ref={containerRef}
       className="relative overflow-hidden h-[calc(100svh-110px)] md:h-[calc(100svh-50px)] min-h-[420px]"
-      style={{ background: "#0e1220" }}
+      style={{ background: sceneBg(mode) }}
     >
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
 
       {/* progress + greeting */}
       <div className="pointer-events-none absolute inset-x-0 top-0 p-4 flex items-start justify-between">
         <div>
-          <p className="text-[13px] font-medium text-white/60">
+          <p className={`text-[13px] font-medium ${day ? "text-secondary" : "text-white/60"}`}>
             {user?.name ? `Ahoj, ${user.name}` : "Vítej"}
           </p>
-          <p className="text-[19px] font-bold text-white tracking-[-0.01em] drop-shadow-[0_1px_6px_rgba(0,0,0,0.5)]">
+          <p className={`text-[19px] font-bold tracking-[-0.01em] ${day ? "text-heading" : "text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.5)]"}`}>
             Tvoje sbírka jezdí Plzní
           </p>
         </div>
-        <div className="rounded-full bg-black/35 backdrop-blur-sm px-3 py-1.5 text-[13px] font-semibold text-white tabular-nums">
+        <div className={`rounded-full backdrop-blur-sm px-3 py-1.5 text-[13px] font-semibold tabular-nums ${day ? "bg-white/70 text-heading" : "bg-black/35 text-white"}`}>
           <span className="text-brand">{caughtCount}</span>
-          <span className="text-white/60"> / {totalCount || 104}</span>
+          <span className={day ? "text-secondary" : "text-white/60"}> / {totalCount || 104}</span>
         </div>
       </div>
 
