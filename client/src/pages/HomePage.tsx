@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useTrams } from "../api/trams";
 import { useSightings } from "../api/sightings";
@@ -15,13 +15,14 @@ import {
   WORLD_H,
   type CaughtTram,
   type Entity,
+  type SceneMode,
 } from "../lib/pixelScene";
 
 export function HomePage() {
   const { user } = useAuth();
   const { data: trams } = useTrams();
   const { data: sightings } = useSightings();
-  const mode = useMemo(() => sceneMode(), []);
+  const [mode, setMode] = useState<SceneMode>(() => sceneMode());
   const day = mode === "day";
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -132,9 +133,34 @@ export function HomePage() {
             Tvoje sbírka jezdí Plzní
           </p>
         </div>
-        <div className={`rounded-full backdrop-blur-sm px-3 py-1.5 text-[13px] font-semibold tabular-nums ${day ? "bg-white/70 text-heading" : "bg-black/35 text-white"}`}>
-          <span className="text-brand">{caughtCount}</span>
-          <span className={day ? "text-secondary" : "text-white/60"}> / {totalCount || 104}</span>
+        <div className="flex items-center gap-2">
+          <div className={`rounded-full backdrop-blur-sm px-3 py-1.5 text-[13px] font-semibold tabular-nums ${day ? "bg-white/70 text-heading" : "bg-black/35 text-white"}`}>
+            <span className="text-brand">{caughtCount}</span>
+            <span className={day ? "text-secondary" : "text-white/60"}> / {totalCount || 104}</span>
+          </div>
+          <button
+            onClick={() => setMode(day ? "night" : "day")}
+            title={day ? "Přepnout na noc" : "Přepnout na den"}
+            className={`pointer-events-auto flex h-[32px] w-[32px] items-center justify-center rounded-full backdrop-blur-sm transition-colors ${day ? "bg-white/70 text-secondary hover:text-heading" : "bg-black/35 text-white/70 hover:text-white"}`}
+          >
+            {day ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="4" />
+                <line x1="12" y1="2" x2="12" y2="5" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+                <line x1="2" y1="12" x2="5" y2="12" />
+                <line x1="19" y1="12" x2="22" y2="12" />
+                <line x1="4.9" y1="4.9" x2="7" y2="7" />
+                <line x1="17" y1="17" x2="19.1" y2="19.1" />
+                <line x1="4.9" y1="19.1" x2="7" y2="17" />
+                <line x1="17" y1="7" x2="19.1" y2="4.9" />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
 

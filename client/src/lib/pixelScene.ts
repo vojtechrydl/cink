@@ -239,31 +239,27 @@ function onion(ctx: CanvasRenderingContext2D, cx: number, yBase: number, wmax: n
 }
 function starD(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, c: string) { tri(ctx, cx - r, cy + r * 0.55, cx + r, cy + r * 0.55, cx, cy - r, c); tri(ctx, cx - r, cy - r * 0.55, cx + r, cy - r * 0.55, cx, cy + r, c); }
 
-// Rows of soft building silhouettes staggered over the WHOLE canvas — the city
-// is a gentle texture behind the trams, not a horizon with sky above it.
-interface TexRow { base: number; step: number; minH: number; varH: number; seed: number; }
-const TEX_ROWS: TexRow[] = [
-  { base: 34, step: 46, minH: 44, varH: 30, seed: 5 },
-  { base: 118, step: 42, minH: 46, varH: 34, seed: 11 },
-  { base: 210, step: 40, minH: 52, varH: 40, seed: 17 },
-  { base: 302, step: 44, minH: 48, varH: 38, seed: 23 },
-  { base: 394, step: 38, minH: 54, varH: 42, seed: 29 },
-  { base: 488, step: 42, minH: 50, varH: 36, seed: 37 },
-  { base: 580, step: 40, minH: 56, varH: 44, seed: 43 },
-  { base: 652, step: 46, minH: 60, varH: 40, seed: 47 },
+// A handful of scattered houses — the backdrop stays mostly flat colour.
+interface Bldg { x: number; base: number; w: number; h: number; }
+const BUILDINGS: Bldg[] = [
+  { x: 60, base: 210, w: 40, h: 64 },
+  { x: 320, base: 120, w: 36, h: 56 },
+  { x: 470, base: 250, w: 44, h: 70 },
+  { x: 760, base: 120, w: 38, h: 58 },
+  { x: 930, base: 240, w: 40, h: 66 },
+  { x: 180, base: 430, w: 36, h: 60 },
+  { x: 560, base: 470, w: 44, h: 72 },
+  { x: 300, base: 560, w: 40, h: 62 },
+  { x: 700, base: 580, w: 38, h: 56 },
+  { x: 900, base: 545, w: 44, h: 68 },
 ];
-function drawTexture(ctx: CanvasRenderingContext2D, p: Palette) {
-  TEX_ROWS.forEach((r, i) => {
-    const t = 0.05 + i * 0.011;
-    const tone = rgbCss(mix(p.ink, p.bg, 1 - t));
-    for (let x = -30 + ((r.seed * 13) % r.step); x < WORLD_W + 10; x += r.step) {
-      const h = r.minH + (((x * r.seed) % r.varH) + r.varH) % r.varH;
-      const w = r.step - 5;
-      rect(ctx, x, r.base - h, w, h, tone);
-      tri(ctx, x - 1, r.base - h, x + w / 2, r.base - h - 10, x + w + 1, r.base - h, tone);
-      windows(ctx, x + 5, r.base - h + 8, x + w - 3, r.base - 6, 9, 13, p.win, p.winA);
-    }
-  });
+function drawBuildings(ctx: CanvasRenderingContext2D, p: Palette) {
+  const tone = rgbCss(mix(p.ink, p.bg, 0.9));
+  for (const b of BUILDINGS) {
+    rect(ctx, b.x, b.base - b.h, b.w, b.h, tone);
+    tri(ctx, b.x - 1, b.base - b.h, b.x + b.w / 2, b.base - b.h - 10, b.x + b.w + 1, b.base - b.h, tone);
+    windows(ctx, b.x + 5, b.base - b.h + 8, b.x + b.w - 3, b.base - 6, 9, 13, p.win, p.winA);
+  }
 }
 
 function lmRadnice(ctx: CanvasRenderingContext2D, cx: number, base: number, p: Palette) {
@@ -327,7 +323,7 @@ export function drawBackdrop(ctx: CanvasRenderingContext2D, mode: SceneMode = sc
   const p = makePalette(mode);
   ctx.fillStyle = p.bg;
   ctx.fillRect(0, 0, WORLD_W, WORLD_H);
-  drawTexture(ctx, p);
+  drawBuildings(ctx, p);
   // Landmarks scattered across the canvas, sitting inside the texture.
   lmSynagoga(ctx, 200, 150, p);
   lmBartolomej(ctx, 640, 214, p);
